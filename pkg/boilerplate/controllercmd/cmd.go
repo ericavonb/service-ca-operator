@@ -8,12 +8,12 @@ import (
 	"reflect"
 	"time"
 
-	"k8s.io/apimachinery/pkg/runtime/schema"
-
 	"github.com/golang/glog"
 	"github.com/spf13/cobra"
 
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/apiserver/pkg/util/logs"
@@ -109,7 +109,7 @@ func (c *ControllerCommandConfig) NewCommand() *cobra.Command {
 }
 
 func (c *ControllerCommandConfig) startController() error {
-	uncastConfig, err := c.flags.ToConfigObj()
+	uncastConfig, err := controllercmd.ReadYAMLFile(c.flags.ConfigFile, c.configScheme, c.versions...)
 	if err != nil {
 		return err
 	}
@@ -133,5 +133,5 @@ func (c *ControllerCommandConfig) startController() error {
 	return controllercmd.NewController(c.componentName, injectComponentNameFunc).
 		WithKubeConfigFile(c.flags.KubeConfigFile, nil).
 		WithLeaderElection(config.LeaderElection, c.componentNamespace, c.componentName+"-lock").
-		Run(uncastConfig, context.TODO())
+		Run(uncastConfig.(*unstructured.Unstructured), context.TODO())
 }
