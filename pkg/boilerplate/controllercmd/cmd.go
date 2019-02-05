@@ -1,6 +1,7 @@
 package controllercmd
 
 import (
+	"context"
 	"fmt"
 	"math/rand"
 	"os"
@@ -108,7 +109,7 @@ func (c *ControllerCommandConfig) NewCommand() *cobra.Command {
 }
 
 func (c *ControllerCommandConfig) startController() error {
-	uncastConfig, err := c.flags.ToConfigObj(c.configScheme, c.versions...)
+	uncastConfig, err := c.flags.ToConfigObj()
 	if err != nil {
 		return err
 	}
@@ -122,14 +123,15 @@ func (c *ControllerCommandConfig) startController() error {
 		return err
 	}
 
-	injectComponentNameFunc := func(config *rest.Config, stop <-chan struct{}) error {
-		newConfig := rest.CopyConfig(config)
+	injectComponentNameFunc := func(ctx *controllercmd.ControllerContext) error {
+		newConfig := rest.CopyConfig(ctx.KubeConfig)
 		newConfig.UserAgent = c.componentName + " " + rest.DefaultKubernetesUserAgent()
-		return startFunc(newConfig, stop)
+		ctx.KubeConfig = newConfig
+		return startFunc(ctx)
 	}
 
 	return controllercmd.NewController(c.componentName, injectComponentNameFunc).
 		WithKubeConfigFile(c.flags.KubeConfigFile, nil).
 		WithLeaderElection(config.LeaderElection, c.componentNamespace, c.componentName+"-lock").
-		Run()
+		Run(uncastConfig, context.TODO())
 }
